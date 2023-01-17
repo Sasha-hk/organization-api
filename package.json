@@ -8,9 +8,9 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/src/main",
+    "start": "dotenv -e ./.env -- nest start",
+    "start:dev": "dotenv -e ./.env -- nest start --watch",
+    "start:prod": "dotenv -e ./.env -- node dist/src/main",
     "test": "yarn migrate:test && jest --runInBand --detectOpenHandles",
     "format:prisma": "prisma format",
     "studio": "dotenv -e ./.env -- prisma studio",
