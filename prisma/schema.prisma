@@ -1,0 +1,42 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String        @id @default(uuid())
+  email                String        @unique @db.VarChar(320)
+  username             String        @unique @db.VarChar(15)
+  role                 Role
+  sessions             AuthSession[]
+  bossId               String?       @unique @db.VarChar(36)
+  boss                 User?         @relation("Boss", fields: [bossId], references: [id])
+  boss_                User?         @relation("Boss")
+  password             String        @db.VarChar(60)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@map("Users")
+}
+
+model AuthSession {
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String   @db.VarChar(36)
+  refreshToken String   @db.VarChar(1024)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("AuthSessions")
+}
+
+enum Role {
+  administrator
+  boss
+  regular
+}
