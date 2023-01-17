@@ -32,9 +32,6 @@ CREATE UNIQUE INDEX "Users_email_key" ON "Users"("email");
 -- CreateIndex
 CREATE UNIQUE INDEX "Users_username_key" ON "Users"("username");
 
--- CreateIndex
-CREATE UNIQUE INDEX "Users_bossId_key" ON "Users"("bossId");
-
 -- AddForeignKey
 ALTER TABLE "Users" ADD CONSTRAINT "Users_bossId_fkey" FOREIGN KEY ("bossId") REFERENCES "Users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

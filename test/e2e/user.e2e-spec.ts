@@ -1,42 +1,24 @@
 /* eslint-disable max-len */
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as bcryptjs from 'bcryptjs';
 import * as cookieParser from 'cookie-parser';
-import * as request from 'supertest';
+import * as util from 'util';
 
 import { AppModule } from '@Src/app.module';
 import { clearDatabase } from '@Test/util/clear-database';
+import { UserActions } from '@Test/util/user-actions';
 import { Application } from 'express';
-import getCookies from '@Test/util/get-cookies';
 
 describe('UserController (e2e)', () => {
   let app: Application;
   let application: INestApplication;
 
-  const administrator = {
-    email: 'admin@email.com',
-    username: 'bigBoss',
-    password: '12345678',
-    role: 'administrator',
-    refreshToken: '',
-    accessToken: '',
-  };
-
-  const user1 = {
-    email: 'user1@email.com',
-    username: 'Josh',
-    password: '12345678',
-    refreshToken: '',
-    accessToken: '',
-  };
-
-  const user2 = {
-    email: 'user2@email.com',
-    username: 'James',
-    password: '12345678',
-    refreshToken: '',
-    accessToken: '',
-  };
+  let admin: UserActions;
+  let user1: UserActions;
+  let user2: UserActions;
+  let user3: UserActions;
+  let user4: UserActions;
 
   beforeAll(async () => {
     // Init express application
@@ -56,6 +38,16 @@ describe('UserController (e2e)', () => {
 
     await clearDatabase();
 
+    admin = new UserActions(app, {
+      email: 'admin@email.com',
+      username: 'bigBoss',
+      password: '12345678',
+    })
+    user1 = new UserActions(app);
+    user2 = new UserActions(app);
+    user3 = new UserActions(app);
+    user4 = new UserActions(app);
+
     const adminCandidate = await prisma.user.findFirst({
       where: {
         role: 'administrator',
@@ -65,62 +57,19 @@ describe('UserController (e2e)', () => {
     if (!adminCandidate) {
       await prisma.user.create({
         data: {
-          email: 'admin@email.com',
-          username: 'bigBoss',
-          password: '12345678',
+          email: admin.email,
+          username: admin.username,
+          password: bcryptjs.hashSync(admin.password, 3),
           role: 'administrator',
         },
       });
     }
 
-    const r = await request(app)
-      .post('/auth/sign-in')
-      .send({
-        email: 'admin@email.com',
-        username: 'bigBoss',
-        password: '12345678',
-        role: 'administrator',
-      })
-      .expect(400);
-    console.log(r.body);
-
-    expect(r.body.accessToken).toBeTruthy();
-
-    const cookies = getCookies(r);
-    expect(cookies.refreshToken.value).toBeTruthy();
-
-    administrator.refreshToken = cookies.refreshToken.value;
-    administrator.accessToken = r.body.accessToken;
-
-    await request(app)
-      .post('/auth/sign-up')
-      .send(user1)
-      .expect(200);
-
-    const { body: responseUser1 } = await request(app)
-      .post('/auth/sign-in')
-      .send(user1)
-      .expect(200);
-
-    const cookies1 = getCookies(responseUser1);
-
-    user1.refreshToken = cookies1.refreshToken.value;
-    user1.accessToken = r.body.accessToken;
-
-    await request(app)
-      .post('/auth/sign-up')
-      .send(user2)
-      .expect(200);
-
-    const { body: responseUser2 } = await request(app)
-      .post('/auth/sign-in')
-      .send(user2)
-      .expect(200);
-
-    const cookies2 = getCookies(responseUser2);
-
-    user2.refreshToken = cookies2.refreshToken.value;
-    user2.accessToken = r.body.accessToken;
+    await admin.logIn();
+    await user1.register();
+    await user2.register();
+    await user3.register();
+    await user4.register();
   });
 
   afterAll(async () => {
@@ -128,32 +77,60 @@ describe('UserController (e2e)', () => {
     await clearDatabase();
   });
 
-
-  describe('get user actions', () => {
-    test('get regular user', async () => {
-
+  test('set boss for user', async () => {
+    await admin.request({
+      url: '/user/boss',
+      method: 'patch',
+      send: {
+        subordinateId: user2.user.id,
+        newBossId: user1.user.id,
+      },
     });
 
-    test('get boss user', async () => {
-
+    await admin.request({
+      url: '/user/boss',
+      method: 'patch',
+      send: {
+        subordinateId: user3.user.id,
+        newBossId: user2.user.id,
+      },
     });
 
-    test('get admin user', async () => {
-
+    await admin.request({
+      url: '/user/boss',
+      method: 'patch',
+      send: {
+        subordinateId: user4.user.id,
+        newBossId: user2.user.id,
+      },
     });
+
+    const { body: newBoss } = await user1.getUser();
+
+    expect(newBoss.role).toBe('boss');
+
+    const { body: newSubordinate } = await user2.getUser();
+
+    expect(newSubordinate.role).toBe('boss');
+    expect(newSubordinate.bossId).toBe(user1.user.id);
   });
 
-  describe('change subordinates actions', () => {
-    test('set boss for user', async () => {
+  test('get regular user', async () => {
+    const { body } = await user3.getUser();
 
-    });
+    expect(body.role).toBe('regular');
+    expect(body.subordinates).toBeUndefined();
+  })
 
-    test('changes boss for user', async () => {
+  test('get boss user', async () => {
+    const { body } = await user1.getUser();
 
-    });
+    console.log(util.inspect(body, { depth: null, colors: true }));
+  })
 
-    test('delete boss for user', async () => {
+  test('get admin user', async () => {
+    const { body } = await admin.getUser();
 
-    });
-  });
+    expect(body).toHaveLength(5);
+  })
 });

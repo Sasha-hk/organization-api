@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as bcryptjs from 'bcryptjs';
 import * as cookieParser from 'cookie-parser';
 import { Application } from 'express';
 import * as jwt from 'jsonwebtoken';
@@ -42,9 +43,9 @@ describe('AuthController (e2e)', () => {
     if (!adminCandidate) {
       await prisma.user.create({
         data: {
-          email: 'admin@email.com',
-          username: 'bigBoss',
-          password: 'root',
+          email: 'admin@some.com',
+          username: 'sudo',
+          password: bcryptjs.hashSync('12345678', 3),
           role: 'administrator',
         },
       });
@@ -57,15 +58,15 @@ describe('AuthController (e2e)', () => {
   });
 
   const user = {
-    username: 'regular',
-    email: 'regular@example.com',
+    username: 'someUser',
+    email: 'some@example.com',
     password: 'regular',
     refreshToken: '',
     accessToken: '',
   };
 
   test('POST sign-up', async () => {
-    await request(app)
+    const { body } = await request(app)
       .post('/auth/sign-up')
       .send(user)
       .expect(201);

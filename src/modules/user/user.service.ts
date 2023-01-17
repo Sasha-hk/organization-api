@@ -7,7 +7,6 @@ import {
 import Prisma from '@prisma/client';
 
 import { prisma } from '@Shared/services/prisma.service';
-import { useContainer } from 'class-validator';
 
 /**
  * User service
@@ -36,32 +35,6 @@ export class UserService {
     return this.prismaService.user.create(args);
   }
 
-  async getUser({ id, username }: Partial<
-    Pick<Prisma.User, 'id' | 'username'>
-  >) {
-    const profile = await this.findFirst({
-      where: {
-        OR: [
-          {
-            username: {
-              equals: username,
-              mode: 'insensitive',
-            },
-          },
-          {
-            id,
-          },
-        ],
-      },
-    });
-
-    if (!profile) {
-      throw new NotFoundException('User profile not found');
-    }
-
-    return new UserDto(profile);
-  }
-
   async getExists<T extends Prisma.Prisma.UserFindFirstArgs>(
     data: Prisma.Prisma.SelectSubset<T, Prisma.Prisma.UserFindFirstArgs>,
     callback?: () => never,
@@ -80,7 +53,31 @@ export class UserService {
     return candidate;
   }
 
-  async getUsers(userId: string) {
+  async getSubordinates(user: any) {
+    const boss = await this.prismaService.user.findFirst({
+      where: {
+        id: user.id,
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        role: true,
+        bossId: true,
+        createdAt: true,
+        updatedAt: true,
+        subordinates: true,
+      },
+    });
+
+    for (let i = 0; i < boss.subordinates.length; i++) {
+      boss.subordinates[i] = await this.getSubordinates(boss.subordinates[i]);
+    }
+
+    return boss as any;
+  }
+
+  async getUser(userId: string) {
     const candidate = await this.getExists({
       where: {
         id: userId,
@@ -90,11 +87,27 @@ export class UserService {
     if (candidate.role === 'administrator') {
       return await this.prismaService.user.findMany({});
     } else if (candidate.role === 'boss') {
-      return await this.prismaService.user.findMany({
+      const boss = await this.prismaService.user.findFirst({
         where: {
           id: userId,
         },
-      })
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          role: true,
+          bossId: true,
+          createdAt: true,
+          updatedAt: true,
+          subordinates: true,
+        },
+      });
+
+      for (let i = 0; i < boss.subordinates.length; i++) {
+        boss.subordinates[i] = await this.getSubordinates(boss.subordinates[i]);
+      }
+
+      return boss;
     }
 
     return candidate;
@@ -116,16 +129,22 @@ export class UserService {
       },
     });
 
+    const newBossCandidate = await this.getExists({
+      where: {
+        id: body.newBossId,
+      },
+    });
+
     if (subordinateCandidate.bossId !== currentBossCandidate.id)  {
       throw new BadRequestException('Impossible to change the user\'s boss');
     }
 
     await this.prismaService.user.update({
       data: {
-        bossId: currentBossCandidate.id,
+        bossId: newBossCandidate.id,
       },
       where: {
-        id: subordinateCandidate.id,
+        id: body.subordinateId,
       },
     });
 

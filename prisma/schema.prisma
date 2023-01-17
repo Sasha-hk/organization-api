@@ -9,17 +9,19 @@ datasource db {
 }
 
 model User {
-  id                   String        @id @default(uuid())
-  email                String        @unique @db.VarChar(320)
-  username             String        @unique @db.VarChar(15)
-  role                 Role
-  sessions             AuthSession[]
-  bossId               String?       @unique @db.VarChar(36)
-  boss                 User?         @relation("Boss", fields: [bossId], references: [id])
-  boss_                User?         @relation("Boss")
-  password             String        @db.VarChar(60)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  id       String        @id @default(uuid())
+  email    String        @unique @db.VarChar(320)
+  username String        @unique @db.VarChar(15)
+  role     Role
+  sessions AuthSession[]
+
+  bossId       String? @db.VarChar(36)
+  boss         User?   @relation("Boss", fields: [bossId], references: [id])
+  subordinates User[]  @relation("Boss")
+
+  password  String   @db.VarChar(60)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("Users")
 }

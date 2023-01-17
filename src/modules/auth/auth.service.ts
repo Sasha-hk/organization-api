@@ -146,17 +146,10 @@ export class AuthService {
     return tokens;
   }
 
-  async validateUser(usernameOrEmail: string, inputPassword: string) {
+  async validateUser(username: string, inputPassword: string) {
     const candidate = await this.userService.findFirst({
       where: {
-        OR: [
-          {
-            username: usernameOrEmail,
-          },
-          {
-            email: usernameOrEmail,
-          },
-        ],
+        username,
       },
     });
 
