@@ -10,9 +10,6 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import {
-  ApiTags,
-} from '@nestjs/swagger';
 import Prisma from '@prisma/client';
 import { Request, Response } from 'express';
 
@@ -44,7 +41,6 @@ function sendRefreshAndAccessTokens(
   });
 }
 
-@ApiTags('Authentication / authorization')
 @Controller('auth')
 export class AuthController {
   constructor(
